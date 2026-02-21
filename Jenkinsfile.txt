@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        PORT = '3000'
+    }
+
     stages {
 
         stage('Checkout') {
@@ -9,16 +13,35 @@ pipeline {
             }
         }
 
-        stage('Setup Environment') {
+        stage('Install Dependencies') {
             steps {
                 bat 'npm install'
             }
         }
 
+        stage('Start Application') {
+            steps {
+                // Start app in background
+                bat '''
+                start /B cmd /c "npm start"
+                '''
+            }
+        }
+
+        stage('Wait For App To Boot') {
+            steps {
+                // Wait ~15 seconds for server to start
+                bat 'ping 127.0.0.1 -n 16 > nul'
+            }
+        }
+
         stage('Health Check') {
             steps {
-                bat 'ping 127.0.0.1 -n 11 > nul'
-                bat 'curl -f http://localhost:3000/health || exit 1'
+                // Fail pipeline if health endpoint not reachable
+                bat '''
+                curl -f http://localhost:%PORT%/health
+                if %errorlevel% neq 0 exit /b 1
+                '''
             }
         }
     }
@@ -29,6 +52,12 @@ pipeline {
         }
         failure {
             echo 'Pipeline failed!'
+        }
+        always {
+            // Kill Node process after pipeline finishes
+            bat '''
+            taskkill /IM node.exe /F > nul 2>&1
+            '''
         }
     }
 }
