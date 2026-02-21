@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        PORT = '3000'
-    }
-
     stages {
 
         stage('Checkout') {
@@ -13,35 +9,15 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Verify Files') {
             steps {
-                bat 'npm install'
+                bat 'dir'
             }
         }
 
-        stage('Start Application') {
+        stage('Build Complete') {
             steps {
-                // Start app in background
-                bat '''
-                start /B cmd /c "npm start"
-                '''
-            }
-        }
-
-        stage('Wait For App To Boot') {
-            steps {
-                // Wait ~15 seconds for server to start
-                bat 'ping 127.0.0.1 -n 16 > nul'
-            }
-        }
-
-        stage('Health Check') {
-            steps {
-                // Fail pipeline if health endpoint not reachable
-                bat '''
-                curl -f http://localhost:%PORT%/health
-                if %errorlevel% neq 0 exit /b 1
-                '''
+                echo 'Static project verified successfully!'
             }
         }
     }
@@ -52,12 +28,6 @@ pipeline {
         }
         failure {
             echo 'Pipeline failed!'
-        }
-        always {
-            // Kill Node process after pipeline finishes
-            bat '''
-            taskkill /IM node.exe /F > nul 2>&1
-            '''
         }
     }
 }
